@@ -1,0 +1,83 @@
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+}
+
+repositories {
+    google()
+    mavenCentral()
+    jcenter()
+    maven {
+        url "https://oss.sonatype.org/content/repositories/snapshots"
+    }
+    flatDir {
+        dirs 'libs'
+    }
+}
+
+android {
+    signingConfigs {
+        release {
+            storeFile file('pvoice.keystore')
+            storePassword '123456'
+            keyAlias 'pvoice'
+            keyPassword '123456'
+        }
+    }
+
+    //compileSdkVersion 28
+     compileSdkVersion 30
+    buildToolsVersion '30.0.3'
+
+    defaultConfig {
+        applicationId 'com.power.voice'
+        minSdkVersion 23
+       // minSdkVersion 24
+        targetSdkVersion 29
+       // targetSdkVersion 28
+        versionCode 1
+        versionName '1.1'
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+
+
+    }
+
+    packagingOptions {
+        pickFirst 'lib/x86/libc++_shared.so'
+        pickFirst 'lib/x86_64/libc++_shared.so'
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'com.google.android.material:material:1.2.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
+    testImplementation 'junit:junit:4.+'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+
+
+    // OkHttp library
+    implementation 'com.squareup.okhttp3:okhttp:4.9.2'
+    implementation  'com.power.voice:app-release:@aar'
+
+    
+}

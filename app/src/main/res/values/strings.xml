@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">PVoBot</string>
+    <string name="app_starting">App is starting...</string>
+</resources>
