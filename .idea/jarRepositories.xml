@@ -41,5 +41,10 @@
       <option name="name" value="linphone.org maven repository" />
       <option name="url" value="https://linphone.org/maven_repository/" />
     </remote-repository>
+    <remote-repository>
+      <option name="id" value="maven2" />
+      <option name="name" value="maven2" />
+      <option name="url" value="https://linphone.org/maven_repository" />
+    </remote-repository>
   </component>
 </project>

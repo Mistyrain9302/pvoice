@@ -13,6 +13,9 @@ repositories {
     flatDir {
         dirs 'libs'
     }
+    maven {
+        url "https://linphone.org/maven_repository"
+    }
 }
 
 android {
@@ -40,8 +43,9 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-
-
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+        }
     }
 
     packagingOptions {
@@ -63,6 +67,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
 }
 
 dependencies {
@@ -79,5 +86,8 @@ dependencies {
     implementation 'com.squareup.okhttp3:okhttp:4.9.2'
     implementation  'com.power.voice:app-release:@aar'
 
-    
+    // Linphone 라이브러리 추가
+    implementation 'org.linphone:linphone-sdk-android:5.0+'
+    implementation 'androidx.media:media:1.2.0'
+    implementation 'com.google.code.gson:gson:2.8.9'
 }

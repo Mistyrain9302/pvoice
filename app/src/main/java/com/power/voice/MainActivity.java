@@ -2,8 +2,11 @@ package com.power.voice;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.media.AudioFormat;
@@ -57,6 +60,9 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
           "encoder.onnx", "units.txt", "ctc.onnx", "decoder.onnx", "stt.mdl"
     );
 
+    private static final List<String> targetList = Arrays.asList("사람 살려", "도와주세요", "살려주세요");
+
+
     private static final String TAG = "MainActivity";
     private boolean startRecord = false;
     private AudioRecord record = null;
@@ -73,6 +79,7 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
 
     private AudioManager audioManager;
 
+    private BroadcastReceiver callEndReceiver;
 
     public static void assetsInit(Context context) throws IOException {
         AssetManager assetMgr = context.getAssets();
@@ -168,6 +175,20 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         // Initialize TextToSpeech
         textToSpeech = new TextToSpeech(this, this);
+
+        callEndReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent.getAction().equals("CALL_ENDED")) {
+                    Log.i(LOG_TAG, "전화 종료됨 - 녹음 다시 시작");
+                    startRecord = true;
+                    startRecordThread();
+                    startAsrThread();
+                    Recognize.startDecode();
+                }
+            }
+        };
+        registerReceiver(callEndReceiver, new IntentFilter("CALL_ENDED"));
 
         Log.d(LOG_TAG, " *** onCreate()");
 
@@ -278,6 +299,27 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
             }
             button.setEnabled(false);
         });
+    }
+
+    private void startCall() {
+        try {
+            Log.i(LOG_TAG, "긴급 상황 감지 - 전화 걸기 시작");
+            startRecord = false;  // 녹음 중지
+            Recognize.setInputFinished();
+            Log.i(LOG_TAG, "Recognize.setInputFinished() 호출 성공");
+            OutgoingCallActivity.Companion.start(this, "sip:12567@192.168.10.112");
+            Log.i(LOG_TAG, "OutgoingCallActivity 시작");
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "전화 걸기 중 오류 발생", e);
+        }
+    }
+
+    protected void onDestroy() {
+        super.onDestroy();
+        if (callEndReceiver != null) {
+            unregisterReceiver(callEndReceiver);
+        }
+        sendBroadcast(new Intent("CALL_ENDED"));
     }
 
 
@@ -457,6 +499,16 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         return energy;
     }
 
+    private boolean containsTargetText(String sttResult) {
+        for (String target : targetList) {
+            if (sttResult.contains(target)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     private void startAsrThread() {
         new Thread(() -> {
             //Thread.currentThread().setPriority( Thread.MAX_PRIORITY );
@@ -464,8 +516,6 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
             // Send all data
             while (startRecord || bufferQueue.size() > 0) {
                 try {
-//                    if (bufferQueue.size() > 0)
-//                        Log.i(LOG_TAG, " @@@@@@@@@    bufferQueue Count  :  " + bufferQueue.size());
                     short[] data = bufferQueue.take();
 
                     // 1. add data to C++ interface
@@ -477,98 +527,23 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
                         textView.setText(sttResult);
                         Log.i(LOG_TAG, " @@@@@@@@@    Recognize. Text  :  " + Recognize.getResult() + " -> " + sttResult);
 
-                        if (sttResult.contains("사람 살려")) {
+                        if (containsTargetText(sttResult)) {
                             // "사람 살려"가 감지되면 수행할 작업
                             Log.i(LOG_TAG, "긴급 상황 감지: " + sttResult);
-                            // 추가적으로 긴급 상황 처리를 위한 메소드 호출 가능
+                            startCall();
                         }
 
                         String[] texts;
-                        int ncount = 0;
                         if (sttResult != "") {
                             texts = extractText(sttResult);
-                            ncount = texts.length;
-                            System.out.println("startAsrThread # Extracted Texts: ");
+
                             for (String text : texts) {
                                 System.out.println(text);
-                                if (text == "사람 살려"){
-                                    Log.i(LOG_TAG,"Text Detected :" + text);
-//                                    linphoneManager.makeCall("sip:destination@sipserver.com")
-                                }
+//                                if (text == "사람 살려"){
+//                                    Log.i(LOG_TAG,"Text Detected :" + text);
+//                                }
                             }
-                            System.out.println("startAsrThread # Total elements count: " + ncount);
-
-
-                            //excute를 통해 백그라운드 task를 실행시킨다
-                            //jsonBody 매개변수 보내는데  매개변수를 doInBackGround에서 사용했다.
-                            // String jsonBody = "{\"sender\":\"test_user\", \"message\":\"거실 조명 켜\"}";
-//                            String jsonBody2 = "{\"sender\":\"test_user-" + getEthernetMacAddress() + "-" + WifiMacAddress + "\", \"message\":\"" + texts[ncount - 1] + "\"}";
-//                            System.out.println(jsonBody2);
-//
-//                            if (ncount >= 1 && ncount != prev_count && texts[ncount - 1].length() > 1) {
-//                                prev_count = ncount;
-//                                String jsonBody = "{\"sender\":\"test_user-" + getEthernetMacAddress() + "-" + WifiMacAddress + "\", \"message\":\"" + texts[ncount - 1] + "\"}";
-//                                System.out.println(jsonBody);
-//                                TextView chatTextView = findViewById(R.id.textChatResponse);
-//                                chatTask = new JsonRequestTask(chatTextView, this);
-//                                chatTask.execute(jsonBody);
-//                            }
                         }
-
-                        /****
-                         if ( count%4 == 0) {
-                         Log.i(LOG_TAG, " startAsrThread @@@@@ 0 @@@@   Count  :  " + count );
-                         TextView chatTextView = findViewById(R.id.textChatResponse);
-                         chatTask = new JsonRequestTask(chatTextView);
-                         //excute를 통해 백그라운드 task를 실행시킨다
-                         //jsonBody 매개변수 보내는데  매개변수를 doInBackGround에서 사용했다.
-                         String jsonBody = "{\"sender\":\"test_user\", \"message\":\"거실 조명 켜\"}";
-                         //String jsonBody = "{\"sender\":\"test_user\", \"message\":\"안방 조명 켜\"}";
-                         chatTask.execute(jsonBody);
-                         count++ ;
-                         }
-                         else if ( count%4 == 1 ) {
-                         Log.i(LOG_TAG, " startAsrThread @@@@ 1 @@@@@   Count  :  " + count );
-                         TextView chatTextView = findViewById(R.id.textChatResponse);
-                         chatTask = new JsonRequestTask(chatTextView);
-                         //excute를 통해 백그라운드 task를 실행시킨다
-                         //jsonBody 매개변수 보내는데  매개변수를 doInBackGround에서 사용했다.
-                         // String jsonBody = "{\"sender\":\"test_user\", \"message\":\"거실 조명 켜\"}";
-                         String jsonBody = "{\"sender\":\"test_user\", \"message\":\"안방 조명 켜\"}";
-                         chatTask.execute(jsonBody);
-                         count++ ;
-                         }
-                         else if ( count%4 == 2 ) {
-                         Log.i(LOG_TAG, " startAsrThread @@@@ 2 @@@@@   Count  :  " + count );
-                         TextView chatTextView = findViewById(R.id.textChatResponse);
-                         chatTask = new JsonRequestTask(chatTextView);
-                         //excute를 통해 백그라운드 task를 실행시킨다
-                         //jsonBody 매개변수 보내는데  매개변수를 doInBackGround에서 사용했다.
-                         // String jsonBody = "{\"sender\":\"test_user\", \"message\":\"거실 조명 켜\"}";
-                         String jsonBody = "{\"sender\":\"test_user\", \"message\":\"전체 조명 켜\"}";
-                         chatTask.execute(jsonBody);
-                         count++ ;
-                         }
-                         else if ( count%4 == 3 ) {
-                         Log.i(LOG_TAG, " startAsrThread @@@@ 3 @@@@@   Count  :  " + count );
-                         TextView chatTextView = findViewById(R.id.textChatResponse);
-                         chatTask = new JsonRequestTask(chatTextView);
-                         //excute를 통해 백그라운드 task를 실행시킨다
-                         //jsonBody 매개변수 보내는데  매개변수를 doInBackGround에서 사용했다.
-                         // String jsonBody = "{\"sender\":\"test_user\", \"message\":\"거실 조명 켜\"}";
-                         String jsonBody = "{\"sender\":\"test_user\", \"message\":\"1번방 조명 켜\"}";
-                         chatTask.execute(jsonBody);
-                         count++ ;
-                         }
-                         **
-                         TextView chatTextView = findViewById(R.id.textChatResponse);
-                         JsonRequestTask  chatTask;
-                         chatTask  = new  JsonRequestTask(chatTextView );
-                         //excute를 통해 백그라운드 task를 실행시킨다
-                         //jsonBody 매개변수 보내는데  매개변수를 doInBackGround에서 사용했다.
-                         String jsonBody = "{\"sender\":\"test_user\", \"message\":\"거실 조명 켜\"}";
-                         chatTask.execute(jsonBody );
-                         ****/
 
                         ScrollView textScrollView = findViewById(R.id.scrollView);
                         textScrollView.fullScroll(ScrollView.FOCUS_DOWN);
