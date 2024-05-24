@@ -2,15 +2,18 @@ package com.power.voice
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Bundle
 import android.widget.Button
-import android.widget.EditText
+import android.widget.RelativeLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import org.linphone.core.*
 
 class OutgoingCallActivity : AppCompatActivity() {
     private lateinit var core: Core
+    private lateinit var audioManager: AudioManager
 
     private val coreListener = object : CoreListenerStub() {
         override fun onCallStateChanged(core: Core, call: Call, state: Call.State?, message: String) {
@@ -23,7 +26,7 @@ class OutgoingCallActivity : AppCompatActivity() {
                 Call.State.Released -> {
                     resetUI()
                     sendCallEndBroadcast()  // 전화 종료 후 브로드캐스트 전송
-                    finish()  // Activity 종료
+                    navigateToMainActivity()  // MainActivity로 이동
                 }
                 else -> { /* Do nothing for other states */ }
             }
@@ -34,12 +37,9 @@ class OutgoingCallActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.outgoing_call_activity)
 
-        initCore()
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-        findViewById<Button>(R.id.call).setOnClickListener {
-            val remoteSipUri = findViewById<EditText>(R.id.remote_address).text.toString()
-            makeCall(remoteSipUri)
-        }
+        initCore()
 
         findViewById<Button>(R.id.hang_up).setOnClickListener {
             hangUp()
@@ -51,6 +51,8 @@ class OutgoingCallActivity : AppCompatActivity() {
         intent.getStringExtra("REMOTE_SIP_URI")?.let {
             makeCall(it)
         }
+
+        setupVolumeControl()
     }
 
     private fun initCore() {
@@ -86,15 +88,16 @@ class OutgoingCallActivity : AppCompatActivity() {
         core.defaultAccount = account
     }
 
-
     fun makeCall(remoteSipUri: String) {
         val remoteAddress = Factory.instance().createAddress(remoteSipUri) ?: return
         val params = core.createCallParams(null) ?: return
 
         // Enable video if necessary
-        params.enableVideo(true)
+//        params.enableVideo(true)
 
         core.inviteAddressWithParams(remoteAddress, params)
+        audioManager.isSpeakerphoneOn = true // 스피커폰 모드 활성화
+        showCallLayout()
     }
 
     private fun hangUp() {
@@ -103,9 +106,27 @@ class OutgoingCallActivity : AppCompatActivity() {
     }
 
     private fun resetUI() {
-        findViewById<EditText>(R.id.remote_address).isEnabled = true
-        findViewById<Button>(R.id.call).isEnabled = true
         findViewById<Button>(R.id.hang_up).isEnabled = false
+    }
+
+    private fun showCallLayout() {
+        findViewById<RelativeLayout>(R.id.call_layout).visibility = android.view.View.VISIBLE
+    }
+
+    private fun setupVolumeControl() {
+        val volumeSeekBar = findViewById<SeekBar>(R.id.volume_seekbar)
+        volumeSeekBar.max = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
+        volumeSeekBar.progress = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+
+        volumeSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, progress, 0)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
     }
 
     override fun onDestroy() {
@@ -119,6 +140,12 @@ class OutgoingCallActivity : AppCompatActivity() {
         sendBroadcast(intent)
     }
 
+    private fun navigateToMainActivity() {
+        val intent = Intent(this, MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        finish()
+    }
 
     companion object {
         fun start(context: Context, remoteSipUri: String) {

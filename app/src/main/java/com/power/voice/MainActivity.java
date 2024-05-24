@@ -53,15 +53,10 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
     private static final String LOG_TAG = "PVoSTT";
     private static final int SAMPLE_RATE = 16000;  // The sampling rate
     private static final int MAX_QUEUE_SIZE = 2500;  // 100 seconds audio, 1 / 0.04 * 100
-    // private static final int MAX_QUEUE_SIZE = 75;  //  2 seconds audio, 1 / 0.04 * 3
     private static final List<String> resource = Arrays.asList(
-//          "final.zip", "units.txt", "ctc.ort", "decoder.ort", "encoder.ort"
-//          "encoder.ort", "units.txt", "ctc.ort", "decoder.ort"
-          "encoder.onnx", "units.txt", "ctc.onnx", "decoder.onnx", "stt.mdl"
+            "encoder.onnx", "units.txt", "ctc.onnx", "decoder.onnx", "stt.mdl"
     );
-
-    private static final List<String> targetList = Arrays.asList("사람 살려", "도와주세요", "살려주세요");
-
+    private static final List<String> targetList = Arrays.asList("사람 살려", "도와주세요", "살려주세요","살려 주세요");
 
     private static final String TAG = "MainActivity";
     private boolean startRecord = false;
@@ -76,20 +71,15 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
     int prev_count;
 
     private TextToSpeech textToSpeech;
-
     private AudioManager audioManager;
-
     private BroadcastReceiver callEndReceiver;
 
     public static void assetsInit(Context context) throws IOException {
         AssetManager assetMgr = context.getAssets();
-        // Unzip all files in resource from assets to context.
-        // Note: Uninstall the APP will remove the resource files in the context.
         for (String file : Objects.requireNonNull(assetMgr.list(""))) {
             if (resource.contains(file)) {
                 File dst = new File(context.getFilesDir(), file);
                 if (!dst.exists() || dst.length() == 0) {
-                    //  Log.i(LOG_TAG, "Unzipping " + file + " to " + dst.getAbsolutePath());
                     InputStream is = assetMgr.open(file);
                     OutputStream os = new FileOutputStream(dst);
                     byte[] buffer = new byte[4 * 1024];
@@ -98,10 +88,13 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
                         os.write(buffer, 0, read);
                     }
                     os.flush();
+                    os.close();
+                    is.close();
                 }
             }
         }
     }
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode,
@@ -120,22 +113,22 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
 
     @Override
     public void onInit(int status) {
-        if (status == TextToSpeech.SUCCESS) {
-            // Set language for TTS
-            int result = textToSpeech.setLanguage(Locale.KOREA);
-
-            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Log.e(TAG, "Language not supported");
-                Toast.makeText(this, "Language not supported", Toast.LENGTH_SHORT).show();
-            }
-
-            textToSpeech.setOnUtteranceProgressListener(new MyUtteranceProgressListener(this));
-
-
-        } else {
-            Log.e(TAG, "Initialization failed");
-            Toast.makeText(this, "TTS Initialization failed", Toast.LENGTH_SHORT).show();
-        }
+//        if (status == TextToSpeech.SUCCESS) {
+//            // Set language for TTS
+//            int result = textToSpeech.setLanguage(Locale.KOREA);
+//
+//            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+//                Log.e(TAG, "Language not supported");
+//                Toast.makeText(this, "Language not supported", Toast.LENGTH_SHORT).show();
+//            }
+//
+//            textToSpeech.setOnUtteranceProgressListener(new MyUtteranceProgressListener(this));
+//
+//
+//        } else {
+//            Log.e(TAG, "Initialization failed");
+//            Toast.makeText(this, "TTS Initialization failed", Toast.LENGTH_SHORT).show();
+//        }
     }
 
     // Method to be called when speech synthesis is completed
@@ -169,11 +162,8 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         requestAudioPermissions();
 
         Log.i(LOG_TAG, " *** PVoice onCreate()");
-        String textToSpeak = "안녕하세요? 반갑습니다.";
-
 
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        // Initialize TextToSpeech
         textToSpeech = new TextToSpeech(this, this);
 
         callEndReceiver = new BroadcastReceiver() {
@@ -182,6 +172,7 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
                 if (intent.getAction().equals("CALL_ENDED")) {
                     Log.i(LOG_TAG, "전화 종료됨 - 녹음 다시 시작");
                     startRecord = true;
+                    initRecorder();
                     startRecordThread();
                     startAsrThread();
                     Recognize.startDecode();
@@ -198,51 +189,35 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         WifiMacAddress = WifiUtils.getWifiMacAddress(this);
         Log.i("Wifi MAC Address", WifiMacAddress);
 
-
         Date date = new Date(System.currentTimeMillis());
         SimpleDateFormat format = new SimpleDateFormat("yyyyMMddhhmmss");
         String time = format.format(date);
 
         if (isExternalStorageWritable()) {
-            //read, write 둘다 가능
-
             File appDirectory = new File(Environment.getExternalStorageDirectory() + "/com.power.voice");
             File logDirectory = new File(appDirectory + "/logs");
             Log.d(LOG_TAG, "*** onCreate() - appDirectory :: " + appDirectory.getAbsolutePath());
             Log.d(LOG_TAG, "*** onCreate() - logDirectory :: " + logDirectory.getAbsolutePath());
 
-            //appDirectory 폴더 없을 시 생성
             if (!appDirectory.exists()) {
                 appDirectory.mkdirs();
             }
 
-            //logDirectory 폴더 없을 시 생성
             if (!logDirectory.exists()) {
                 logDirectory.mkdirs();
             }
 
             File logFile = new File(logDirectory, "logcat_" + time + ".txt");
-            // File logFile = new File( appDirectory, "logcat_" + time + ".txt" );
             Log.d(LOG_TAG, "*** onCreate() - logFile :: " + logFile);
-
-
-            //이전 logcat 을 지우고 파일에 새 로그을 씀
 
             try {
                 if (ifdef_log_enable) {
                     java.lang.Process process = Runtime.getRuntime().exec("logcat -c");
-                    process = Runtime.getRuntime().exec("logcat  -n 4 -r 1024 -f " + logFile);   // 1024 kilo bytes,  4 count 개수 만큼 로그파일 rotat
-                    //  process = Runtime.getRuntime().exec("logcat -f " + logFile);
+                    process = Runtime.getRuntime().exec("logcat  -n 4 -r 1024 -f " + logFile);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
-
-        } else if (isExternalStorageReadable()) {
-            //read 만 가능
-        } else {
-            //접근 불가능
         }
 
         String ex1 = ",\n,\n@test1@,\n@test2@,\n,\n@test3@,\n,\n";
@@ -255,23 +230,11 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         }
         System.out.println("Total elements count: " + count2);
 
-/****
- TextView chatTextView = findViewById(R.id.textChatResponse);
- chatTask  = new  JsonRequestTask(chatTextView );
- //excute를 통해 백그라운드 task를 실행시킨다
- //jsonBody 매개변수 보내는데  매개변수를 doInBackGround에서 사용했다.
- // String jsonBody = "{\"sender\":\"test_user\", \"message\":\"거실 조명 켜\"}";
- String jsonBody = "{\"sender\":\"test_user\", \"message\":\"안방 조명 켜 \"}";
- chatTask.execute(jsonBody );
- ****/
-
-
         try {
             assetsInit(this);
         } catch (IOException e) {
             Log.e(LOG_TAG, "Error process asset files to file path");
         }
-
 
         ScrollView textScrollView = findViewById(R.id.scrollView);
         TextView textView = findViewById(R.id.textView);
@@ -304,9 +267,14 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
     private void startCall() {
         try {
             Log.i(LOG_TAG, "긴급 상황 감지 - 전화 걸기 시작");
-            startRecord = false;  // 녹음 중지
-            Recognize.setInputFinished();
-            Log.i(LOG_TAG, "Recognize.setInputFinished() 호출 성공");
+            if (startRecord) {
+                startRecord = false;  // 녹음 중지
+                if (record != null && record.getState() == AudioRecord.STATE_INITIALIZED && record.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+                    record.stop();
+                }
+                Recognize.setInputFinished();
+                Log.i(LOG_TAG, "Recognize.setInputFinished() 호출 성공");
+            }
             OutgoingCallActivity.Companion.start(this, "sip:12567@192.168.10.112");
             Log.i(LOG_TAG, "OutgoingCallActivity 시작");
         } catch (Exception e) {
@@ -314,10 +282,29 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         }
     }
 
+
+    private void stopRecording() {
+        startRecord = false;
+        if (record != null) {
+            if (record.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+                record.stop();
+            }
+            record.release();
+            record = null;
+        }
+        bufferQueue.clear();
+    }
+
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (callEndReceiver != null) {
             unregisterReceiver(callEndReceiver);
+        }
+        if (record != null) {
+            record.release();
+            record = null;
         }
         sendBroadcast(new Intent("CALL_ENDED"));
     }
@@ -346,27 +333,13 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
 
     @Override
     public void onBackPressed() {
-        // 앱 종료를 확인하는 다이얼로그를 표시합니다.
         new AlertDialog.Builder(this)
                 .setTitle("앱 종료")
                 .setMessage("정말로 앱을 종료하시겠습니까?")
-                .setPositiveButton("예", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        // 예 버튼을 클릭하면 앱을 종료합니다.
-                        finish();
-                    }
-                })
-                .setNegativeButton("아니요", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        // 아니요 버튼을 클릭하면 다이얼로그를 닫습니다.
-                        dialog.dismiss();
-                    }
-                })
+                .setPositiveButton("예", (dialog, which) -> finish())
+                .setNegativeButton("아니요", (dialog, which) -> dialog.dismiss())
                 .show();
     }
-
 
     private void requestAudioPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
@@ -383,7 +356,6 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
 
     @SuppressWarnings("MissingPermission")
     private void initRecorder() {
-        // buffer size in bytes 1280
         miniBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT);
@@ -392,11 +364,6 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
             return;
         }
 
-        /***
-         miniBufferSize = 4096 ;
-         miniBufferSize = 3072 ;
-         miniBufferSize = 2048 ;
-         ***/
         record = new AudioRecord(MediaRecorder.AudioSource.DEFAULT,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
@@ -406,18 +373,18 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
             Log.e(LOG_TAG, "Audio Record can't initialize!");
             return;
         }
-        //  Log.i(LOG_TAG, "Record init okay  : miniBufferSize -> " +  miniBufferSize );
     }
 
     private void startRecordThread() {
-
         new Thread(() -> {
             VoiceRectView voiceView = findViewById(R.id.voiceRectView);
-            record.startRecording();
+            if (record != null) {
+                record.startRecording();
+            }
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
             while (startRecord) {
                 short[] buffer = new short[miniBufferSize / 2];
-                int read = record.read(buffer, 0, buffer.length);
+                int read = record != null ? record.read(buffer, 0, buffer.length) : 0;
                 voiceView.add(calculateDb(buffer));
                 try {
                     if (AudioRecord.ERROR_INVALID_OPERATION != read) {
@@ -431,10 +398,13 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
                     runOnUiThread(() -> button.setEnabled(true));
                 }
             }
-            record.stop();
+            if (record != null && record.getState() == AudioRecord.STATE_INITIALIZED && record.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+                record.stop();
+            }
             voiceView.zero();
         }).start();
     }
+
 
     public String getEthernetMacAddress() {
         try {
@@ -508,19 +478,13 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         return false;
     }
 
-
     private void startAsrThread() {
         new Thread(() -> {
-            //Thread.currentThread().setPriority( Thread.MAX_PRIORITY );
             count = 1;
-            // Send all data
             while (startRecord || bufferQueue.size() > 0) {
                 try {
                     short[] data = bufferQueue.take();
-
-                    // 1. add data to C++ interface
                     Recognize.acceptWaveform(data);
-                    // 2. get partial result
                     runOnUiThread(() -> {
                         TextView textView = findViewById(R.id.textView);
                         String sttResult = convertJapaneseRoom(Recognize.getResult());
@@ -528,20 +492,15 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
                         Log.i(LOG_TAG, " @@@@@@@@@    Recognize. Text  :  " + Recognize.getResult() + " -> " + sttResult);
 
                         if (containsTargetText(sttResult)) {
-                            // "사람 살려"가 감지되면 수행할 작업
                             Log.i(LOG_TAG, "긴급 상황 감지: " + sttResult);
                             startCall();
                         }
 
                         String[] texts;
-                        if (sttResult != "") {
+                        if (!sttResult.isEmpty()) {
                             texts = extractText(sttResult);
-
                             for (String text : texts) {
                                 System.out.println(text);
-//                                if (text == "사람 살려"){
-//                                    Log.i(LOG_TAG,"Text Detected :" + text);
-//                                }
                             }
                         }
 
@@ -553,9 +512,7 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
                 }
             }
 
-            // Wait for final result
             while (true) {
-                // get result
                 if (!Recognize.getFinished()) {
                     runOnUiThread(() -> {
                         TextView textView = findViewById(R.id.textView);
