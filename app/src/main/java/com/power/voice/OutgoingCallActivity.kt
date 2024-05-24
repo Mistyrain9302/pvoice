@@ -5,7 +5,7 @@ import android.content.Intent
 import android.media.AudioManager
 import android.os.Bundle
 import android.widget.Button
-import android.widget.RelativeLayout
+import android.widget.EditText
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -22,11 +22,13 @@ class OutgoingCallActivity : AppCompatActivity() {
             when (state) {
                 Call.State.Connected, Call.State.StreamsRunning -> {
                     findViewById<Button>(R.id.hang_up).isEnabled = true
+                    enableSpeakerMode(true)  // Enable speaker mode when call is connected
                 }
                 Call.State.Released -> {
                     resetUI()
                     sendCallEndBroadcast()  // 전화 종료 후 브로드캐스트 전송
                     navigateToMainActivity()  // MainActivity로 이동
+                    enableSpeakerMode(false)  // Disable speaker mode when call is ended
                 }
                 else -> { /* Do nothing for other states */ }
             }
@@ -41,8 +43,42 @@ class OutgoingCallActivity : AppCompatActivity() {
 
         initCore()
 
+        findViewById<Button>(R.id.call).setOnClickListener {
+            val remoteSipUri = findViewById<EditText>(R.id.remote_address).text.toString()
+            makeCall(remoteSipUri)
+        }
+
         findViewById<Button>(R.id.hang_up).setOnClickListener {
             hangUp()
+        }
+
+        findViewById<SeekBar>(R.id.speaker_volume).apply {
+            max = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
+            progress = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, progress, 0)
+                }
+
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
+        }
+
+        findViewById<SeekBar>(R.id.mic_gain).apply {
+            max = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
+            progress = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    // This is a placeholder for mic gain control. Actual mic gain control might not be directly available.
+                    // The AudioManager class does not provide a direct way to control mic gain.
+                }
+
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
         }
 
         resetUI()
@@ -51,8 +87,6 @@ class OutgoingCallActivity : AppCompatActivity() {
         intent.getStringExtra("REMOTE_SIP_URI")?.let {
             makeCall(it)
         }
-
-        setupVolumeControl()
     }
 
     private fun initCore() {
@@ -89,44 +123,25 @@ class OutgoingCallActivity : AppCompatActivity() {
     }
 
     fun makeCall(remoteSipUri: String) {
+        // 기존 세션 종료
+        core.currentCall?.terminate()
+
         val remoteAddress = Factory.instance().createAddress(remoteSipUri) ?: return
         val params = core.createCallParams(null) ?: return
 
-        // Enable video if necessary
-//        params.enableVideo(true)
-
         core.inviteAddressWithParams(remoteAddress, params)
-        audioManager.isSpeakerphoneOn = true // 스피커폰 모드 활성화
-        showCallLayout()
     }
 
     private fun hangUp() {
         val call = core.currentCall ?: return
         call.terminate()
+        enableSpeakerMode(false)  // Disable speaker mode when call is hung up
     }
 
     private fun resetUI() {
+        findViewById<EditText>(R.id.remote_address).isEnabled = true
+        findViewById<Button>(R.id.call).isEnabled = true
         findViewById<Button>(R.id.hang_up).isEnabled = false
-    }
-
-    private fun showCallLayout() {
-        findViewById<RelativeLayout>(R.id.call_layout).visibility = android.view.View.VISIBLE
-    }
-
-    private fun setupVolumeControl() {
-        val volumeSeekBar = findViewById<SeekBar>(R.id.volume_seekbar)
-        volumeSeekBar.max = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
-        volumeSeekBar.progress = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
-
-        volumeSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, progress, 0)
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
     }
 
     override fun onDestroy() {
@@ -145,6 +160,10 @@ class OutgoingCallActivity : AppCompatActivity() {
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(intent)
         finish()
+    }
+
+    private fun enableSpeakerMode(enable: Boolean) {
+        audioManager.isSpeakerphoneOn = enable
     }
 
     companion object {

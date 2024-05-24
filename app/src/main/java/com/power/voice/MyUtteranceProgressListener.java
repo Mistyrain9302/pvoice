@@ -23,7 +23,7 @@ public class MyUtteranceProgressListener extends UtteranceProgressListener {
         if (utteranceId.equals("MyUtteranceId")) {
             // Handle the completion of the speech synthesis request with the specified utterance ID
             // Call onSpeechCompleted() method of MainActivity
-            mainActivity.onSpeechCompleted();
+//            mainActivity.onSpeechCompleted();
         }
     }
 

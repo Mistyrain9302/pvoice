@@ -16,7 +16,6 @@ import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Process;
-import android.speech.tts.TextToSpeech;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.widget.Button;
@@ -34,10 +33,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.NetworkInterface;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -47,7 +44,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class MainActivity extends AppCompatActivity implements JsonRequestTask.TaskCompletedListener, TextToSpeech.OnInitListener {
+public class MainActivity extends AppCompatActivity implements JsonRequestTask.TaskCompletedListener {
     private final boolean ifdef_log_enable = false;
     private final int MY_PERMISSIONS_RECORD_AUDIO = 1;
     private static final String LOG_TAG = "PVoSTT";
@@ -56,21 +53,18 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
     private static final List<String> resource = Arrays.asList(
             "encoder.onnx", "units.txt", "ctc.onnx", "decoder.onnx", "stt.mdl"
     );
-    private static final List<String> targetList = Arrays.asList("사람 살려", "도와주세요", "살려주세요","살려 주세요");
+    private static final List<String> targetList = Arrays.asList("사람 살려", "도와주세요", "도와 주세요", "살려주세요", "살려 주세요");
 
     private static final String TAG = "MainActivity";
     private boolean startRecord = false;
+    private boolean emergencyDetected = false;
     private AudioRecord record = null;
     private int miniBufferSize = 0;  // 1280 bytes 648 byte 40ms, 0.04s
     private final BlockingQueue<short[]> bufferQueue = new ArrayBlockingQueue<>(MAX_QUEUE_SIZE);
 
-    JsonRequestTask chatTask;
-    String ethernetMacAddress;
-    String WifiMacAddress;
     int count;
     int prev_count;
 
-    private TextToSpeech textToSpeech;
     private AudioManager audioManager;
     private BroadcastReceiver callEndReceiver;
 
@@ -95,7 +89,6 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         }
     }
 
-
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -111,44 +104,12 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         }
     }
 
-    @Override
-    public void onInit(int status) {
-//        if (status == TextToSpeech.SUCCESS) {
-//            // Set language for TTS
-//            int result = textToSpeech.setLanguage(Locale.KOREA);
-//
-//            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-//                Log.e(TAG, "Language not supported");
-//                Toast.makeText(this, "Language not supported", Toast.LENGTH_SHORT).show();
-//            }
-//
-//            textToSpeech.setOnUtteranceProgressListener(new MyUtteranceProgressListener(this));
-//
-//
-//        } else {
-//            Log.e(TAG, "Initialization failed");
-//            Toast.makeText(this, "TTS Initialization failed", Toast.LENGTH_SHORT).show();
-//        }
-    }
-
-    // Method to be called when speech synthesis is completed
-    public void onSpeechCompleted() {
-        // Perform any action you want after speech synthesis is completed
-        Log.i("MainActivity", "Speech synthesis completed");
-        // Unmute microphone
-        audioManager.setMicrophoneMute(false);
-    }
 
     @Override
     public void onTaskCompleted() {
-        Log.d(TAG, "Text to speech task completed");
-        // You can perform any action you want here after the task is completed
-
-        speakOut();
     }
 
     public static String convertJapaneseRoom(String sentence) {
-        // 정규 표현식을 사용하여 '일본 방' 또는 '일본방'을 '일번 방'으로 변환
         String regex = "(일본\\s*방)";
         Pattern pattern = Pattern.compile(regex);
         Matcher matcher = pattern.matcher(sentence);
@@ -164,7 +125,6 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         Log.i(LOG_TAG, " *** PVoice onCreate()");
 
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        textToSpeech = new TextToSpeech(this, this);
 
         callEndReceiver = new BroadcastReceiver() {
             @Override
@@ -172,6 +132,7 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
                 if (intent.getAction().equals("CALL_ENDED")) {
                     Log.i(LOG_TAG, "전화 종료됨 - 녹음 다시 시작");
                     startRecord = true;
+                    emergencyDetected = false;  // 긴급 상황 해제
                     initRecorder();
                     startRecordThread();
                     startAsrThread();
@@ -184,10 +145,6 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         Log.d(LOG_TAG, " *** onCreate()");
 
         prev_count = -1;
-        ethernetMacAddress = getEthernetMacAddress();
-        Log.i("Ethernet MAC Address", ethernetMacAddress);
-        WifiMacAddress = WifiUtils.getWifiMacAddress(this);
-        Log.i("Wifi MAC Address", WifiMacAddress);
 
         Date date = new Date(System.currentTimeMillis());
         SimpleDateFormat format = new SimpleDateFormat("yyyyMMddhhmmss");
@@ -268,20 +225,17 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         try {
             Log.i(LOG_TAG, "긴급 상황 감지 - 전화 걸기 시작");
             if (startRecord) {
-                startRecord = false;  // 녹음 중지
-                if (record != null && record.getState() == AudioRecord.STATE_INITIALIZED && record.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
-                    record.stop();
-                }
+                stopRecording();  // Ensure recording is properly stopped
                 Recognize.setInputFinished();
                 Log.i(LOG_TAG, "Recognize.setInputFinished() 호출 성공");
             }
+            emergencyDetected = true;  // 긴급 상황 감지됨
             OutgoingCallActivity.Companion.start(this, "sip:12567@192.168.10.112");
             Log.i(LOG_TAG, "OutgoingCallActivity 시작");
         } catch (Exception e) {
             Log.e(LOG_TAG, "전화 걸기 중 오류 발생", e);
         }
     }
-
 
     private void stopRecording() {
         startRecord = false;
@@ -294,7 +248,6 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         }
         bufferQueue.clear();
     }
-
 
     @Override
     protected void onDestroy() {
@@ -309,23 +262,11 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         sendBroadcast(new Intent("CALL_ENDED"));
     }
 
-
-    /**
-     * 외부저장소 read/write 가능 여부 확인
-     *
-     * @return
-     */
     public boolean isExternalStorageWritable() {
         String state = Environment.getExternalStorageState();
         return Environment.MEDIA_MOUNTED.equals(state);
     }
 
-
-    /**
-     * 외부저장소 read 가능 여부 확인
-     *
-     * @return
-     */
     public boolean isExternalStorageReadable() {
         String state = Environment.getExternalStorageState();
         return Environment.MEDIA_MOUNTED.equals(state) || Environment.MEDIA_MOUNTED_READ_ONLY.equals(state);
@@ -351,8 +292,6 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
             initRecorder();
         }
     }
-
-    //@SuppressLint("MissingPermission")
 
     @SuppressWarnings("MissingPermission")
     private void initRecorder() {
@@ -405,54 +344,12 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         }).start();
     }
 
-
-    public String getEthernetMacAddress() {
-        try {
-            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
-            for (NetworkInterface intf : interfaces) {
-                if (intf.getName().equalsIgnoreCase("eth0")) {
-                    byte[] mac = intf.getHardwareAddress();
-                    if (mac == null) {
-                        return "02:00:00:00:00:00";
-                    }
-                    StringBuilder buf = new StringBuilder();
-                    for (byte aMac : mac) {
-                        buf.append(String.format("%02X:", aMac));
-                    }
-                    if (buf.length() > 0) {
-                        buf.deleteCharAt(buf.length() - 1);
-                    }
-                    return buf.toString();
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return "02:00:00:00:00:00";
-    }
-
-
-    private void speakOut() {
-
-        TextView chatTextView = findViewById(R.id.textChatResponse);
-        String text = chatTextView.getText().toString();
-        // mute microphone
-        audioManager.setMicrophoneMute(true);
-
-        // Check if TextToSpeech is initialized
-        if (textToSpeech != null) {
-            String utteranceId = "MyUtteranceId"; // Unique identifier for this speech synthesis request
-            textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId);
-        }
-    }
-
-
     public static String[] extractText(String input) {
-        Pattern pattern = Pattern.compile("\\@([^@]+)\\@"); // 정규 표현식으로 *로 둘러싸인 문자열 추출
+        Pattern pattern = Pattern.compile("\\@([^@]+)\\@");
         Matcher matcher = pattern.matcher(input);
         StringBuilder result = new StringBuilder();
         while (matcher.find()) {
-            result.append(matcher.group(1)).append("\n"); // 매칭된 부분을 결과에 추가
+            result.append(matcher.group(1)).append("\n");
         }
         String[] texts = result.toString().split("\n");
         return texts;
@@ -491,7 +388,7 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
                         textView.setText(sttResult);
                         Log.i(LOG_TAG, " @@@@@@@@@    Recognize. Text  :  " + Recognize.getResult() + " -> " + sttResult);
 
-                        if (containsTargetText(sttResult)) {
+                        if (!emergencyDetected && containsTargetText(sttResult)) {
                             Log.i(LOG_TAG, "긴급 상황 감지: " + sttResult);
                             startCall();
                         }

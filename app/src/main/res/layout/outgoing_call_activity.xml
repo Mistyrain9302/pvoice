@@ -38,8 +38,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Domain"
-            android:text="sip.linphone.org"
-            android:inputType="textUri" />
+            android:inputType="textUri"
+            android:text="sip.linphone.org" />
 
         <RadioGroup
             android:id="@+id/transport"
@@ -63,8 +63,9 @@
                 android:id="@+id/tls"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="TLS"
-                android:checked="true" />
+                android:checked="true"
+                android:text="TLS" />
+
         </RadioGroup>
 
         <Button
@@ -72,6 +73,56 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Connect" />
+
+        <Button
+            android:id="@+id/call"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Call" />
+
+        <EditText
+            android:id="@+id/remote_address"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Remote SIP address" />
+
+        <TextView
+            android:id="@+id/call_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center" />
+
+        <!-- Speaker Volume Label -->
+        <TextView
+            android:id="@+id/speaker_volume_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Speaker Volume" />
+
+        <!-- Speaker Volume Slider -->
+        <SeekBar
+            android:id="@+id/speaker_volume"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/speaker_volume_label"
+            android:layout_marginBottom="16dp"
+            android:max="100" />
+
+        <!-- Mic Gain Label -->
+        <TextView
+            android:id="@+id/mic_gain_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Mic Gain" />
+
+        <!-- Mic Gain Slider -->
+        <SeekBar
+            android:id="@+id/mic_gain"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/mic_gain_label"
+            android:max="100" />
     </LinearLayout>
 
     <RelativeLayout
@@ -79,31 +130,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/register_layout"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/call_status"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_alignParentRight="true"
-            android:gravity="center"
-            android:layout_alignParentTop="true"/>
-
-        <SeekBar
-            android:id="@+id/volume_seekbar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/call_status"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="20dp"/>
-
-        <TextView
-            android:id="@+id/volume_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Volume"
-            android:layout_below="@id/volume_seekbar"
-            android:layout_centerHorizontal="true" />
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="visible">
 
         <Button
             android:id="@+id/pause"
@@ -120,5 +149,6 @@
             android:layout_alignParentRight="true"
             android:layout_alignParentBottom="true"
             android:text="Hang up" />
+
     </RelativeLayout>
 </RelativeLayout>
