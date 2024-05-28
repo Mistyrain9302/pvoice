@@ -122,7 +122,7 @@ class OutgoingCallActivity : AppCompatActivity() {
         core.defaultAccount = account
     }
 
-    fun makeCall(remoteSipUri: String) {
+    private fun makeCall(remoteSipUri: String) {
         // 기존 세션 종료
         core.currentCall?.terminate()
 
@@ -130,6 +130,14 @@ class OutgoingCallActivity : AppCompatActivity() {
         val params = core.createCallParams(null) ?: return
 
         core.inviteAddressWithParams(remoteAddress, params)
+
+        // 오디오 장치 설정
+        val audioDevices = core.audioDevices
+        val speakerDevice = audioDevices.find { it.type == AudioDevice.Type.Speaker }
+
+        if (speakerDevice != null) {
+            core.currentCall?.outputAudioDevice = speakerDevice
+        }
     }
 
     private fun hangUp() {
