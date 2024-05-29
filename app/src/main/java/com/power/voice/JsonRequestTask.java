@@ -90,17 +90,17 @@ public class JsonRequestTask extends AsyncTask<String, Void, String> {
 
     //UI작업 관련 작업 (백그라운드 실행중 이 메소드를 통해 UI작업을 할 수 있다)
 //publishProgress(value)의 value를 값으로 받는다.values는 배열이라 여러개 받기가능
-  /****
-    protected void onProgressUpdate(String ... values) {
-        TextView textView = textViewWeakReference.get();
-        if (textView != null) {
+    /****
+     protected void onProgressUpdate(String ... values) {
+     TextView textView = textViewWeakReference.get();
+     if (textView != null) {
 
-            textView.setText("현재  값 : " + values[0]);
-        }
+     textView.setText("현재  값 : " + values[0]);
+     }
 
-    }
+     }
 
-   ***/
+     ***/
     @Override
     protected void onPostExecute(String response) {
         // Handle response here

@@ -221,6 +221,24 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
         });
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        resetState();
+    }
+
+    private void resetState() {
+        // MainActivity의 초기 상태로 리셋하는 코드
+        startRecord = false;
+        emergencyDetected = false;
+        bufferQueue.clear();
+        TextView textView = findViewById(R.id.textView);
+        textView.setText("");
+        Button button = findViewById(R.id.button);
+        button.setText("Start Record");
+        button.setEnabled(true);
+    }
+
     private void startCall() {
         try {
             Log.i(LOG_TAG, "긴급 상황 감지 - 전화 걸기 시작");
