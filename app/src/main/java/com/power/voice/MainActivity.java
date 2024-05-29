@@ -44,7 +44,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class MainActivity extends AppCompatActivity implements JsonRequestTask.TaskCompletedListener {
+public class MainActivity extends AppCompatActivity {
     private final boolean ifdef_log_enable = false;
     private final int MY_PERMISSIONS_RECORD_AUDIO = 1;
     private static final String LOG_TAG = "PVoSTT";
@@ -102,11 +102,6 @@ public class MainActivity extends AppCompatActivity implements JsonRequestTask.T
                 button.setEnabled(false);
             }
         }
-    }
-
-
-    @Override
-    public void onTaskCompleted() {
     }
 
     public static String convertJapaneseRoom(String sentence) {
