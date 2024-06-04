@@ -4,16 +4,15 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
 import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
-import android.widget.SeekBar
-import android.widget.TextView
+import android.view.View
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import org.linphone.core.*
 
 class OutgoingCallActivity : AppCompatActivity() {
     private lateinit var core: Core
     private lateinit var audioManager: AudioManager
+    private lateinit var registerLayout: LinearLayout
 
     private val coreListener = object : CoreListenerStub() {
         override fun onCallStateChanged(core: Core, call: Call, state: Call.State?, message: String) {
@@ -23,12 +22,27 @@ class OutgoingCallActivity : AppCompatActivity() {
                 Call.State.Connected, Call.State.StreamsRunning -> {
                     findViewById<Button>(R.id.hang_up).isEnabled = true
                     enableSpeakerMode(true)  // Enable speaker mode when call is connected
+                    enableAEC()  // Enable AEC when call is connected
                 }
                 Call.State.Released -> {
                     resetUI()
                     sendCallEndBroadcast()  // 전화 종료 후 브로드캐스트 전송
                     navigateToMainActivity()  // MainActivity로 이동
                     enableSpeakerMode(false)  // Disable speaker mode when call is ended
+                }
+                Call.State.OutgoingInit -> {
+                    // First state an outgoing call will go through
+                }
+                Call.State.OutgoingProgress -> {
+                    // Right after outgoing init
+                }
+                Call.State.OutgoingRinging -> {
+                    // This state will be reached upon reception of the 180 RINGING
+                }
+                Call.State.Error -> {
+                    // Handle call error
+                    resetUI()
+                    navigateToMainActivity()
                 }
                 else -> { /* Do nothing for other states */ }
             }
@@ -52,35 +66,20 @@ class OutgoingCallActivity : AppCompatActivity() {
             hangUp()
         }
 
-        findViewById<SeekBar>(R.id.speaker_volume).apply {
-            max = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
-            progress = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, progress, 0)
-                }
-
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-            })
+        findViewById<Button>(R.id.volume_up).setOnClickListener {
+            adjustVolume(AudioManager.ADJUST_RAISE)
         }
 
-        findViewById<SeekBar>(R.id.mic_gain).apply {
-            max = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
-            progress = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    // This is a placeholder for mic gain control. Actual mic gain control might not be directly available.
-                    // The AudioManager class does not provide a direct way to control mic gain.
-                }
-
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-            })
+        findViewById<Button>(R.id.volume_down).setOnClickListener {
+            adjustVolume(AudioManager.ADJUST_LOWER)
         }
 
+        registerLayout = findViewById(R.id.register_layout)
+        findViewById<Button>(R.id.toggle_register_layout).setOnClickListener {
+            toggleRegisterLayout()
+        }
+
+        updateVolumeDisplay()
         resetUI()
 
         // Check if started with a SIP URI to call
@@ -97,7 +96,7 @@ class OutgoingCallActivity : AppCompatActivity() {
         core.start()
 
         // SIP 계정 설정
-        val username = "12567"
+        val username = "12789"
         val password = "1234"
         val domain = "192.168.10.112"
 
@@ -111,18 +110,33 @@ class OutgoingCallActivity : AppCompatActivity() {
         accountParams.identityAddress = identity
 
         val address = Factory.instance().createAddress("sip:$domain")
-        address?.transport = TransportType.Udp // 필요한 경우 TCP, TLS 등으로 변경 가능
+        address?.transport = TransportType.Udp
         accountParams.serverAddress = address
 
-        // Account 객체 생성 및 추가
+        // 계정 추가
         val account = core.createAccount(accountParams)
         core.addAccount(account)
 
         // 기본 Account 설정
         core.defaultAccount = account
+
+        // AEC 설정
+        core.config.setString("sound", "ec_filter", "MSWebRTCAEC")
+        core.config.setBool("sound", "echocancellation", true)
+        core.config.setInt("sound", "ec_delay", 100)
+
+        // 소프트웨어 AEC 설정
+        core.mediastreamerFactory.setDeviceInfo(android.os.Build.MANUFACTURER, android.os.Build.MODEL, android.os.Build.DEVICE, org.linphone.mediastream.Factory.DEVICE_HAS_BUILTIN_AEC_CRAPPY, 0, 0)
+        core.reloadSoundDevices()
     }
 
+
     private fun makeCall(remoteSipUri: String) {
+        // Linphone Core가 초기화되었는지 확인
+        if (core.callsNb == 0) {
+            initCore()
+        }
+
         // 기존 세션 종료
         core.currentCall?.terminate()
 
@@ -136,14 +150,21 @@ class OutgoingCallActivity : AppCompatActivity() {
         val speakerDevice = audioDevices.find { it.type == AudioDevice.Type.Speaker }
 
         if (speakerDevice != null) {
-            core.currentCall?.outputAudioDevice = speakerDevice
+            core.outputAudioDevice = speakerDevice
         }
     }
 
     private fun hangUp() {
-        val call = core.currentCall ?: return
-        call.terminate()
-        enableSpeakerMode(false)  // Disable speaker mode when call is hung up
+        core.currentCall?.terminate()
+    }
+
+    private fun enableSpeakerMode(enable: Boolean) {
+        audioManager.isSpeakerphoneOn = enable
+    }
+
+    private fun enableAEC() {
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        audioManager.isSpeakerphoneOn = true
     }
 
     private fun resetUI() {
@@ -152,26 +173,41 @@ class OutgoingCallActivity : AppCompatActivity() {
         findViewById<Button>(R.id.hang_up).isEnabled = false
     }
 
-    override fun onDestroy() {
-        core.removeListener(coreListener)
-        core.stop()
-        super.onDestroy()
+    private fun updateVolumeDisplay() {
+        val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+        findViewById<TextView>(R.id.current_volume).text = currentVolume.toString()
+    }
+
+    private fun adjustVolume(direction: Int) {
+        audioManager.adjustStreamVolume(AudioManager.STREAM_VOICE_CALL, direction, 0)
+        updateVolumeDisplay()
     }
 
     private fun sendCallEndBroadcast() {
-        val intent = Intent("CALL_ENDED")
-        sendBroadcast(intent)
+        val broadcastIntent = Intent("com.power.voice.CALL_ENDED")
+        sendBroadcast(broadcastIntent)
     }
 
     private fun navigateToMainActivity() {
         val intent = Intent(this, MainActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
-        finish()
     }
 
-    private fun enableSpeakerMode(enable: Boolean) {
-        audioManager.isSpeakerphoneOn = enable
+    private fun toggleRegisterLayout() {
+        if (registerLayout.visibility == View.VISIBLE) {
+            registerLayout.visibility = View.GONE
+            findViewById<Button>(R.id.toggle_register_layout).text = "Show Registration Options"
+        } else {
+            registerLayout.visibility = View.VISIBLE
+            findViewById<Button>(R.id.toggle_register_layout).text = "Hide Registration Options"
+        }
+    }
+
+    override fun onDestroy() {
+        core.removeListener(coreListener)
+        core.stop()
+        super.onDestroy()
     }
 
     companion object {

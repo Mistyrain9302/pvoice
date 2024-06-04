@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">PVoBot</string>
     <string name="app_starting">App is starting...</string>
+    <string name="select_audio_device">Select Audio Device</string>
 </resources>

@@ -3,152 +3,177 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/registration_status"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true"
-        android:text="Registration Status" />
-
-    <LinearLayout
-        android:id="@+id/register_layout"
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/registration_status"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:layout_height="match_parent">
 
-        <EditText
-            android:id="@+id/username"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Username"
-            android:inputType="textEmailAddress" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <EditText
-            android:id="@+id/password"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Password"
-            android:inputType="textPassword" />
-
-        <EditText
-            android:id="@+id/domain"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Domain"
-            android:inputType="textUri"
-            android:text="sip.linphone.org" />
-
-        <RadioGroup
-            android:id="@+id/transport"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <RadioButton
-                android:id="@+id/udp"
+            <TextView
+                android:id="@+id/registration_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="UDP" />
+                android:layout_gravity="center_horizontal"
+                android:text="Registration Status"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
 
-            <RadioButton
-                android:id="@+id/tcp"
+            <LinearLayout
+                android:id="@+id/register_layout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <EditText
+                    android:id="@+id/username"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Username"
+                    android:inputType="textEmailAddress" />
+
+                <EditText
+                    android:id="@+id/password"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Password"
+                    android:inputType="textPassword" />
+
+                <EditText
+                    android:id="@+id/domain"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Domain"
+                    android:inputType="textUri"
+                    android:text="sip.linphone.org" />
+
+                <RadioGroup
+                    android:id="@+id/transport"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/udp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="UDP" />
+
+                    <RadioButton
+                        android:id="@+id/tcp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="TCP" />
+
+                    <RadioButton
+                        android:id="@+id/tls"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="TLS" />
+                </RadioGroup>
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/toggle_register_layout"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="TCP" />
+                android:text="Show Registration Options" />
 
-            <RadioButton
-                android:id="@+id/tls"
+            <Button
+                android:id="@+id/call"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:checked="true"
-                android:text="TLS" />
+                android:text="Call" />
 
-        </RadioGroup>
+            <EditText
+                android:id="@+id/remote_address"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Remote SIP address" />
 
-        <Button
-            android:id="@+id/connect"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Connect" />
+            <TextView
+                android:id="@+id/call_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center" />
 
-        <Button
-            android:id="@+id/call"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Call" />
+            <TextView
+                android:id="@+id/speaker_volume_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Speaker Volume" />
 
-        <EditText
-            android:id="@+id/remote_address"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Remote SIP address" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
 
-        <TextView
-            android:id="@+id/call_status"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center" />
+                <Button
+                    android:id="@+id/volume_down"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="▼" />
 
-        <!-- Speaker Volume Label -->
-        <TextView
-            android:id="@+id/speaker_volume_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Speaker Volume" />
+                <TextView
+                    android:id="@+id/current_volume"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:layout_marginLeft="16dp"
+                    android:layout_marginRight="16dp"
+                    android:gravity="center" />
 
-        <!-- Speaker Volume Slider -->
-        <SeekBar
-            android:id="@+id/speaker_volume"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/speaker_volume_label"
-            android:layout_marginBottom="16dp"
-            android:max="100" />
+                <Button
+                    android:id="@+id/volume_up"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="▲" />
+            </LinearLayout>
 
-        <!-- Mic Gain Label -->
-        <TextView
-            android:id="@+id/mic_gain_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Mic Gain" />
+            <TextView
+                android:id="@+id/mic_gain_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Mic Gain" />
 
-        <!-- Mic Gain Slider -->
-        <SeekBar
-            android:id="@+id/mic_gain"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/mic_gain_label"
-            android:max="100" />
-    </LinearLayout>
+            <SeekBar
+                android:id="@+id/mic_gain"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100" />
 
-    <RelativeLayout
-        android:id="@+id/call_layout"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/register_layout"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="visible">
+            <RelativeLayout
+                android:id="@+id/call_layout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="visible">
 
-        <Button
-            android:id="@+id/pause"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentBottom="true"
-            android:text="Pause" />
+                <Button
+                    android:id="@+id/pause"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentBottom="true"
+                    android:text="Pause" />
 
-        <Button
-            android:id="@+id/hang_up"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentRight="true"
-            android:layout_alignParentBottom="true"
-            android:text="Hang up" />
-
-    </RelativeLayout>
+                <Button
+                    android:id="@+id/hang_up"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentRight="true"
+                    android:layout_alignParentBottom="true"
+                    android:text="Hang up" />
+            </RelativeLayout>
+        </LinearLayout>
+    </ScrollView>
 </RelativeLayout>

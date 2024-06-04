@@ -126,12 +126,8 @@ public class MainActivity extends AppCompatActivity {
             public void onReceive(Context context, Intent intent) {
                 if (intent.getAction().equals("CALL_ENDED")) {
                     Log.i(LOG_TAG, "전화 종료됨 - 녹음 다시 시작");
-                    startRecord = true;
-                    emergencyDetected = false;  // 긴급 상황 해제
-                    initRecorder();
-                    startRecordThread();
-                    startAsrThread();
-                    Recognize.startDecode();
+                    resetState();
+                    startRecordingProcess();
                 }
             }
         };
@@ -203,13 +199,10 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(LOG_TAG, " >>>>>>>>>>>>>>> New Record Starts...  ");
                 startRecord = true;
                 Recognize.reset();
-                startRecordThread();
-                startAsrThread();
-                Recognize.startDecode();
+                startRecordingProcess();
                 button.setText("Stop Record");
             } else {
-                startRecord = false;
-                Recognize.setInputFinished();
+                stopRecordingProcess();
                 button.setText("Start Record");
             }
             button.setEnabled(false);
@@ -238,11 +231,11 @@ public class MainActivity extends AppCompatActivity {
         try {
             Log.i(LOG_TAG, "긴급 상황 감지 - 전화 걸기 시작");
             if (startRecord) {
-                stopRecording();  // Ensure recording is properly stopped
+                stopRecordingProcess();
                 Recognize.setInputFinished();
                 Log.i(LOG_TAG, "Recognize.setInputFinished() 호출 성공");
             }
-            emergencyDetected = true;  // 긴급 상황 감지됨
+            emergencyDetected = true;
             OutgoingCallActivity.Companion.start(this, "sip:12567@192.168.10.112");
             Log.i(LOG_TAG, "OutgoingCallActivity 시작");
         } catch (Exception e) {
@@ -250,7 +243,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void stopRecording() {
+    private void startRecordingProcess() {
+        initRecorder();
+        startRecordThread();
+        startAsrThread();
+        Recognize.startDecode();
+    }
+
+    private void stopRecordingProcess() {
         startRecord = false;
         if (record != null) {
             if (record.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
@@ -261,6 +261,7 @@ public class MainActivity extends AppCompatActivity {
         }
         bufferQueue.clear();
     }
+
 
     @Override
     protected void onDestroy() {
@@ -274,6 +275,7 @@ public class MainActivity extends AppCompatActivity {
         }
         sendBroadcast(new Intent("CALL_ENDED"));
     }
+
 
     public boolean isExternalStorageWritable() {
         String state = Environment.getExternalStorageState();
